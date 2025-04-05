@@ -1,0 +1,4 @@
+netmiko
+cisco
+windows-curses
+getpass
