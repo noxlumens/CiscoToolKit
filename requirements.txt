@@ -2,3 +2,4 @@ netmiko
 cisco
 windows-curses
 getpass
+pick
