@@ -1,5 +1,7 @@
 from netmiko import ConnectHandler
 import time
+from concurrent.futures import ThreadPoolExecutor
+import logging
 
 def ftp_downloading(site,binary,username,password,host):
     # Define the device details template
@@ -13,7 +15,8 @@ def ftp_downloading(site,binary,username,password,host):
     output = ""
     try:
         net_connect = ConnectHandler(**device)
-        print(f"Checking for the binary file on {host}...")
+        logging.info(f"{host} => Searching for Binary")
+        print(f"{host} => Searching for Binary => {time.strftime('%m/%d/%Y %H:%M:%S')}")
 
         # Check if the binary file exists on the switch
         bin_check = net_connect.send_command(f"dir flash: | include {binary}")
@@ -28,11 +31,13 @@ def ftp_downloading(site,binary,username,password,host):
                     output += net_connect.send_command_timing('y\n', read_timeout=0)
                 output += net_connect.read_channel()
                 if 'SUCCESS: install_remove' in output:
-                    print(f"Unnecessary package files cleaned up for {host}...")
+                    logging.info(f"{host} => Cleaned Up Unused Files")
+                    print(f"{host} => Cleaned Up Unused Files => {time.strftime('%m/%d/%Y %H:%M:%S')}")
                     break
-            print(f"{host} - Downloading - {time.strftime('%m/%d/%Y %H:%M:%S')}")
-            output = net_connect.send_command_timing(f"copy ftp://{site}dhcp1/{binary} flash:/{binary}", strip_prompt=False, strip_command=False, read_timeout=0)
-            # Handle interactive prompts
+            logging.info(f"{host} => Downloading")
+            print(f"{host} => Downloading => {time.strftime('%m/%d/%Y %H:%M:%S')}")
+            output = net_connect.send_command_timing(f"copy ftp://{site}ftp/{binary} flash:/{binary}", strip_prompt=False, strip_command=False, read_timeout=0)
+
             counter = 0
             while 'bytes copied' not in output and counter < 100:
                 time.sleep(10)
@@ -48,13 +53,24 @@ def ftp_downloading(site,binary,username,password,host):
                     print("The file does not exist")
                     break
                 if 'bytes copied' in output:
-                    print(f"{host} - Download Successful - {binary}")
+                    logging.info(f"{host} => Download Successful => {binary}")
+                    print(f"{host} => Download Successful => {binary} => {time.strftime('%m/%d/%Y %H:%M:%S')}")
                     net_connect.send_command_timing("copy running-config startup-config",read_timeout=0)
         else:
+            logging.warning(f"{host} => Binary Exists")
+            print(f"{host} => Binary Exists => {time.strftime('%m/%d/%Y %H:%M:%S')}")
             return True
 
     except Exception as e:
+        logging.error(f"{host} => {e} => {time.strftime('%m/%d/%Y %H:%M:%S')}")
         print(f"Exception on {host}: {e}")
+
+def download_multiple_devices(site, binary, username, password, hosts):
+    logging.basicConfig(filename=f"{time.strftime('Maintenance_%m-%d-%Y_%H-%M-%S')}", filemode='w', format='%(asctime)s => ', level=logging.INFO)
+    with ThreadPoolExecutor(max_workers=len(hosts)) as executor:
+        futures = [executor.submit(ftp_downloading, site, binary, username, password, host) for host in hosts]
+        for future in futures:
+            future.result()
 
 if __name__ == "__main__":
     print("CiscoToolKit Module Information:\nftp_download is a module for the CiscoToolKit application and should be run with the following:\npython CiscoToolKit.py -d\n")
