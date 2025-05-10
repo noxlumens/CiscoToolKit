@@ -6,7 +6,7 @@ def site():
     
     while count < 3:
         count += 1
-        site = input("Which Site Are you downloading from?\n0: Little Rock\n1: Fort Smith\n>> ")
+        site = input("Which Site Are you downloading from?\n0: Site1\n1: Site2\n>> ")
         #print(type(site))
         #print(site)
         if site == "0":
